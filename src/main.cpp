@@ -121,7 +121,7 @@ static std::wstring                   g_dataPath;
 
 // Layout rects
 static RECT g_prevBtn = {0}, g_nextBtn = {0}, g_todayBtn = {0};
-static RECT g_copyBtn = {0}, g_clearMonthBtn = {0};
+static RECT g_copyBtn = {0}, g_clearMonthBtn = {0}, g_resetBtn = {0};
 static int  g_gridTop = 0, g_gridLeft = 0;
 static int  g_cellW = 0, g_cellH = 0;
 static int  g_gridStartDow = 0;
@@ -534,6 +534,39 @@ static void ClearMonth() {
 }
 
 // ============================================================================
+//  RESET ALL
+// ============================================================================
+
+static void ResetAll() {
+    if (g_shifts.empty()) {
+        MessageBoxW(g_hWnd, L"Nema unesenih podataka za brisanje.", L"Info", MB_OK | MB_ICONINFORMATION);
+        return;
+    }
+
+    int totalShifts = (int)g_shifts.size();
+
+    wchar_t msg[300];
+    wsprintfW(msg,
+        L"UPOZORENJE!\n\n"
+        L"Obrisati SVE smjene iz SVIH mjeseci i godina?\n\n"
+        L"Ukupno %d unesenih smjena ce biti obrisano.\n\n"
+        L"Ova akcija se NE MOZE ponistiti!",
+        totalShifts);
+
+    if (MessageBoxW(g_hWnd, msg, L"RESET - Brisanje svega", MB_YESNO | MB_ICONWARNING) == IDYES) {
+        // Double confirm for safety
+        if (MessageBoxW(g_hWnd,
+            L"Da li ste SIGURNI?\n\nSvi podaci ce biti trajno obrisani!",
+            L"Posljednja potvrda", MB_YESNO | MB_ICONERROR) == IDYES) {
+            g_shifts.clear();
+            SaveData();
+            InvalidateRect(g_hWnd, NULL, FALSE);
+            MessageBoxW(g_hWnd, L"Svi podaci su uspjesno obrisani.", L"Reset zavrsen", MB_OK | MB_ICONINFORMATION);
+        }
+    }
+}
+
+// ============================================================================
 //  GDI+ HELPERS
 // ============================================================================
 
@@ -603,8 +636,16 @@ static void DrawCalendar(HDC hdc, int W, int H) {
       StringFormat sf; sf.SetAlignment(StringAlignmentCenter); sf.SetLineAlignment(StringAlignmentCenter);
       g.DrawString(L"\x25B6",1,&fBtn,RectF((float)nX,(float)bY,(float)nW,(float)bH),&sf,&txBr); }
 
-    // Clear (rightmost)
-    int clW = 65, clX = W-clW-15;
+    // Reset All (rightmost)
+    int rsW = 60, rsX = W-rsW-15;
+    g_resetBtn = {rsX, bY, rsX+rsW, bY+bH};
+    { SolidBrush b(g_hoverBtn==5?Color(255,150,30,30):Color(255,110,20,20));
+      FillRR(g,&b,(float)rsX,(float)bY,(float)rsW,(float)bH,(float)bR);
+      StringFormat sf; sf.SetAlignment(StringAlignmentCenter); sf.SetLineAlignment(StringAlignmentCenter);
+      g.DrawString(L"Reset",5,&fBtnSm,RectF((float)rsX,(float)bY,(float)rsW,(float)bH),&sf,&txBr); }
+
+    // Clear month
+    int clW = 65, clX = rsX-clW-6;
     g_clearMonthBtn = {clX, bY, clX+clW, bY+bH};
     { SolidBrush b(g_hoverBtn==4?CLR_BTN_CLEARMONTH_HOVER:CLR_BTN_CLEARMONTH);
       FillRR(g,&b,(float)clX,(float)bY,(float)clW,(float)bH,(float)bR);
@@ -777,6 +818,7 @@ static int HitTestButton(int mx, int my) {
     if (PtInRect(&g_todayBtn,pt)) return 2;
     if (PtInRect(&g_copyBtn,pt)) return 3;
     if (PtInRect(&g_clearMonthBtn,pt)) return 4;
+    if (PtInRect(&g_resetBtn,pt)) return 5;
     return -1;
 }
 
@@ -861,6 +903,7 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
         if (btn==2) { GoToToday(); return 0; }
         if (btn==3) { ShowCopyDialog(); return 0; }
         if (btn==4) { ClearMonth(); return 0; }
+        if (btn==5) { ResetAll(); return 0; }
         int day=HitTestDay(mx,my);
         if (day>0) ShowShiftMenu(day,mx,my);
         return 0;
