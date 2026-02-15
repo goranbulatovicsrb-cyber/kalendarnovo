@@ -1,0 +1,22 @@
+name: Build SmjeneKalendar
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build with g++
+        shell: cmd
+        run: |
+          g++ -o SmjeneKalendar.exe src/main.cpp -lgdi32 -lgdiplus -luser32 -lshell32 -lcomctl32 -lkernel32 -lole32 -mwindows -static -static-libgcc -static-libstdc++ -O2 -DUNICODE -D_UNICODE
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SmjeneKalendar
+          path: SmjeneKalendar.exe
